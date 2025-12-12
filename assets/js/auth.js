@@ -1,80 +1,74 @@
-import { load, save } from "./storage.js";
+const usersKey = "usuarios";
+const sessionKey = "sesionActiva";
 
-const registerForm = document.getElementById("registerForm");
-const regName = document.getElementById("regName");
-const regEmail = document.getElementById("regEmail");
-const regPass = document.getElementById("regPass");
-const regAlert = document.getElementById("regAlert");
-
-const loginForm = document.getElementById("loginForm");
-const logEmail = document.getElementById("logEmail");
-const logPass = document.getElementById("logPass");
-const logAlert = document.getElementById("logAlert");
-
-const sessionBox = document.getElementById("sessionBox");
-const btnLogout = document.getElementById("btnLogout");
-
-const USERS_KEY = "m3_users";
-const SESSION_KEY = "m3_session";
-
-function show(el, msg, type="danger") {
-  el.className = `alert alert-${type}`;
-  el.textContent = msg;
-  el.classList.remove("d-none");
-}
-function hide(el){ el.classList.add("d-none"); el.textContent=""; }
-
-function setSession(user) {
-  save(SESSION_KEY, { email: user.email, name: user.name, at: new Date().toISOString() });
-  renderSession();
+function getUsers() {
+  return JSON.parse(localStorage.getItem(usersKey)) || [];
 }
 
-function renderSession() {
-  const session = load(SESSION_KEY, null);
-  sessionBox.textContent = session ? JSON.stringify(session, null, 2) : "Sin sesión";
+function saveUsers(users) {
+  localStorage.setItem(usersKey, JSON.stringify(users));
 }
 
-registerForm.addEventListener("submit", (e) => {
-  e.preventDefault();
-  hide(regAlert);
+function setSession(email) {
+  localStorage.setItem(sessionKey, email);
+  pintarSesion();
+}
 
-  const name = regName.value.trim();
-  const email = regEmail.value.trim().toLowerCase();
-  const pass = regPass.value;
+function clearSession() {
+  localStorage.removeItem(sessionKey);
+  pintarSesion();
+}
 
-  const users = load(USERS_KEY, []);
-  const exists = users.some(u => u.email === email);
-  if (exists) return show(regAlert, "Ese email ya está registrado.", "warning");
+function pintarSesion() {
+  const estado = document.getElementById("estadoSesion");
+  const email = localStorage.getItem(sessionKey);
 
-  users.push({ name, email, pass });
-  save(USERS_KEY, users);
+  estado.textContent = email ? email : "Sin sesión";
+}
 
-  show(regAlert, "Usuario registrado ✅", "success");
-  registerForm.reset();
-});
+// Registro
+function registrar() {
+  const nombre = document.getElementById("regNombre").value.trim();
+  const email = document.getElementById("regEmail").value.trim().toLowerCase();
+  const pass = document.getElementById("regPass").value;
 
-loginForm.addEventListener("submit", (e) => {
-  e.preventDefault();
-  hide(logAlert);
+  if (!nombre || !email || !pass) {
+    alert("Completa todos los campos");
+    return;
+  }
 
-  const email = logEmail.value.trim().toLowerCase();
-  const pass = logPass.value;
+  const users = getUsers();
 
-  const users = load(USERS_KEY, []);
-  const user = users.find(u => u.email === email && u.pass === pass);
+  if (users.some(u => u.email === email)) {
+    alert("El usuario ya existe");
+    return;
+  }
 
-  if (!user) return show(logAlert, "Credenciales incorrectas.", "danger");
+  users.push({ nombre, email, pass });
+  saveUsers(users);
 
-  show(logAlert, `Bienvenido, ${user.name} ✅`, "success");
-  setSession(user);
-  loginForm.reset();
-});
+  alert("Usuario registrado correctamente");
+}
 
-btnLogout.addEventListener("click", () => {
-  localStorage.removeItem(SESSION_KEY);
-  renderSession();
-  show(logAlert, "Sesión cerrada.", "secondary");
-  setTimeout(()=>hide(logAlert), 1200);
-});
+// Login
+function ingresar() {
+  const email = document.getElementById("loginEmail").value.trim().toLowerCase();
+  const pass = document.getElementById("loginPass").value;
 
-renderSession();
+  const user = getUsers().find(u => u.email === email && u.pass === pass);
+
+  if (!user) {
+    alert("Credenciales incorrectas");
+    return;
+  }
+
+  setSession(user.email);
+  alert(`Bienvenido ${user.nombre}`);
+}
+
+// Eventos
+document.getElementById("btnRegistro")?.addEventListener("click", registrar);
+document.getElementById("btnLogin")?.addEventListener("click", ingresar);
+document.getElementById("btnLogout")?.addEventListener("click", clearSession);
+
+pintarSesion();
